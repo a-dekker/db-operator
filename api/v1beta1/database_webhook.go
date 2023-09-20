@@ -126,7 +126,6 @@ func ValidateTemplates(templates Templates) error {
 		functions := []string{"Secret", "ConfigMap", "Query"}
 		// This regexp is getting fields from mustache templates so then they can be compared to allowed fields
 		reg := "{{\\s*\\.([\\w\\.]+)\\s*(.*?)\\s*}}"
-		fmt.Println(reg)
 		r, _ := regexp.Compile(reg)
 		fields := r.FindAllStringSubmatch(template.Template, -1)
 		for _, field := range fields {
