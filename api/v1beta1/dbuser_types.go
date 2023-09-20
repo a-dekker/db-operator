@@ -32,8 +32,6 @@ type DbUserSpec struct {
 	AccessType string `json:"accessType"`
 	// SecretName name that should be used to save user's credentials
 	SecretName string `json:"secretName"`
-	// Templates to add custom entries to ConfigMaps and Secrets
-	Templates Templates `json:"templates,omitempty"`
 }
 
 // DbUserStatus defines the observed state of DbUser
