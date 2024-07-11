@@ -41,7 +41,6 @@ import (
 	"github.com/db-operator/db-operator/pkg/utils/database"
 	"github.com/db-operator/db-operator/pkg/utils/kci"
 	"github.com/db-operator/db-operator/pkg/utils/proxy"
-	secTemplates "github.com/db-operator/db-operator/pkg/utils/templates"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -73,7 +72,6 @@ var (
 	dbPhaseCreateOrUpdate       = "CreatingOrUpdating"
 	dbPhaseInstanceAccessSecret = "InstanceAccessSecretCreating"
 	dbPhaseProxy                = "ProxyCreating"
-	dbPhaseSecretsTemplating    = "SecretsTemplating"
 	dbPhaseConfigMap            = "InfoConfigMapCreating"
 	dbPhaseTemplating           = "Templating"
 	dbPhaseBackupJob            = "BackupJobCreating"
@@ -311,11 +309,6 @@ func (r *DatabaseReconciler) handleDbCreateOrUpdate(ctx context.Context, dbcr *k
 		return r.manageError(ctx, dbcr, err, true, phase)
 	}
 
-	phase = dbPhaseSecretsTemplating
-	r.Recorder.Event(dbcr, "Normal", phase, "Creating templated secrets")
-	if err = r.createTemplatedSecrets(ctx, dbcr); err != nil {
-		return r.manageError(ctx, dbcr, err, true, phase)
-	}
 	phase = dbPhaseConfigMap
 	r.Recorder.Event(dbcr, "Normal", phase, "Creating ConfigMap")
 	if err = r.handleInfoConfigMap(ctx, dbcr); err != nil {
@@ -324,13 +317,8 @@ func (r *DatabaseReconciler) handleDbCreateOrUpdate(ctx context.Context, dbcr *k
 	phase = dbPhaseTemplating
 	r.Recorder.Event(dbcr, "Normal", phase, "Handle templated credentials")
 
-	// A temporary check that exists to avoid creating templates if secretsTemplates are used.
-	// todo: It should be removed when secretsTemlates are gone
-
-	if len(dbcr.Spec.SecretsTemplates) == 0 {
-		if err := r.handleTemplatedCredentials(ctx, dbcr); err != nil {
-			return r.manageError(ctx, dbcr, err, false, phase)
-		}
+	if err := r.handleTemplatedCredentials(ctx, dbcr); err != nil {
+		return r.manageError(ctx, dbcr, err, false, phase)
 	}
 	phase = dbPhaseBackupJob
 	r.Recorder.Event(dbcr, "Normal", phase, "Handle BackupJob")
@@ -768,60 +756,6 @@ func (r *DatabaseReconciler) handleTemplatedCredentials(ctx context.Context, dbc
 	}
 	// Set it to nil explicitly to ensure it's picked up by the GC
 	templateds = nil
-	return nil
-}
-
-func (r *DatabaseReconciler) createTemplatedSecrets(ctx context.Context, dbcr *kindav1beta1.Database) error {
-	if len(dbcr.Spec.SecretsTemplates) > 0 {
-		r.Recorder.Event(dbcr, "Warning", "Deprecation",
-			"secretsTemplates are deprecated and will be removed in the next API version. Please consider using templates",
-		)
-		// First of all the password should be taken from secret because it's not stored anywhere else
-		databaseSecret, err := r.getDatabaseSecret(ctx, dbcr)
-		if err != nil {
-			return err
-		}
-
-		cred, err := dbhelper.ParseDatabaseSecretData(dbcr, databaseSecret.Data)
-		if err != nil {
-			return err
-		}
-
-		databaseCred, err := secTemplates.ParseTemplatedSecretsData(dbcr, cred, databaseSecret.Data)
-		if err != nil {
-			return err
-		}
-		instance := &kindav1beta1.DbInstance{}
-		if err := r.Get(ctx, types.NamespacedName{Name: dbcr.Spec.Instance}, instance); err != nil {
-			return err
-		}
-
-		db, _, err := dbhelper.FetchDatabaseData(ctx, dbcr, databaseCred, instance)
-		if err != nil {
-			// failed to determine database type
-			return err
-		}
-		dbSecrets, err := secTemplates.GenerateTemplatedSecrets(dbcr, databaseCred, db.GetDatabaseAddress(ctx))
-		if err != nil {
-			return err
-		}
-		// Adding values
-		newSecretData := secTemplates.AppendTemplatedSecretData(dbcr, databaseSecret.Data, dbSecrets)
-		newSecretData = secTemplates.RemoveObsoleteSecret(dbcr, newSecretData, dbSecrets)
-
-		for key, value := range newSecretData {
-			databaseSecret.Data[key] = value
-		}
-
-		if err := r.kubeHelper.ModifyObject(ctx, databaseSecret); err != nil {
-			return err
-		}
-
-		if err = r.Update(ctx, databaseSecret, &client.UpdateOptions{}); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

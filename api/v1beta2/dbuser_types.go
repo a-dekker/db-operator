@@ -40,6 +40,7 @@ type DbUserStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+// +kubebuilder:storageversion
 
 // DbUser is the Schema for the dbusers API
 type DbUser struct {

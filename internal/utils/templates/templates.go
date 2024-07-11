@@ -192,7 +192,7 @@ func NewTemplateDataSource(
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * Main getters funcions should be used to query the data
+ * Main getters functions should be used to query the data
  *  from main data source objects:
  *  - Secret
  *  - ConfigMap

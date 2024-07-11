@@ -24,13 +24,10 @@ import (
 	"github.com/db-operator/db-operator/internal/utils/templates"
 	consts "github.com/db-operator/db-operator/pkg/consts"
 	"github.com/db-operator/db-operator/pkg/utils/database"
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-var log = logr.New(logr.Discard().GetSink())
 
 var secretK8s *corev1.Secret = &corev1.Secret{
 	ObjectMeta: v1.ObjectMeta{
@@ -224,18 +221,6 @@ func TestUnitTemplatesConfigMapErr(t *testing.T) {
 	}
 	_, err = templateds.ConfigMap("SOMETHING")
 	assert.Error(t, errors.New("entry not found in the configmap: SOMETHING"), err)
-}
-
-var postgresInstance *v1beta1.DbInstance = &v1beta1.DbInstance{
-	Spec: v1beta1.DbInstanceSpec{
-		Engine: "postgres",
-	},
-}
-
-var mysqlInstance *v1beta1.DbInstance = &v1beta1.DbInstance{
-	Spec: v1beta1.DbInstanceSpec{
-		Engine: "mysql",
-	},
 }
 
 func TestUnitProtocolGetterPostgres(t *testing.T) {

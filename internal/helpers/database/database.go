@@ -30,6 +30,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+func FetchDbInstanceData(ctx context.Context) {
+}
+
 func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred database.Credentials, instance *kindav1beta1.DbInstance) (database.Database, *database.DatabaseUser, error) {
 	log := log.FromContext(ctx)
 	host := instance.Status.Info["DB_CONN"]
@@ -59,7 +62,6 @@ func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred 
 	case "postgres":
 		extList := dbcr.Spec.Postgres.Extensions
 		db := database.Postgres{
-			Backend:          backend,
 			Host:             host,
 			Port:             uint16(port),
 			Database:         dbCred.Name,
