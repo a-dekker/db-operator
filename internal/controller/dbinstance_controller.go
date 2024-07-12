@@ -37,13 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var (
-	dbInstancePhaseValidate  = "Validating"
-	dbInstancePhaseCreate    = "Connecting"
-	dbInstancePhaseBroadcast = "Broadcasting"
-	dbInstancePhaseRunning   = "Running"
-)
-
 // DbInstanceReconciler reconciles a DbInstance object
 type DbInstanceReconciler struct {
 	client.Client
@@ -212,28 +205,29 @@ func (r *DbInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+// TODO: implement it separately, it might be a bigger change that affects all the resources
 // Broadcast should notify all the databases and dbusers that a dbinstance was updated, and
 // they should be reconciled
-func (r *DbInstanceReconciler) broadcast(ctx context.Context, dbin *kindav1beta2.DbInstance) error {
-	dbList := &kindav1beta2.DatabaseList{}
-	err := r.List(ctx, dbList)
-	if err != nil {
-		return err
-	}
+// func (r *DbInstanceReconciler) broadcast(ctx context.Context, dbin *kindav1beta2.DbInstance) error {
+// 	dbList := &kindav1beta2.DatabaseList{}
+// 	err := r.List(ctx, dbList)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	for _, db := range dbList.Items {
-		if db.Spec.Instance == dbin.Name {
-			annotations := db.ObjectMeta.GetAnnotations()
-			if _, found := annotations["checksum/spec"]; found {
-				annotations["checksum/spec"] = ""
-				db.ObjectMeta.SetAnnotations(annotations)
-				err = r.Update(ctx, &db)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
+// 	for _, db := range dbList.Items {
+// 		if db.Spec.Instance == dbin.Name {
+// 			annotations := db.ObjectMeta.GetAnnotations()
+// 			if _, found := annotations["checksum/spec"]; found {
+// 				annotations["checksum/spec"] = ""
+// 				db.ObjectMeta.SetAnnotations(annotations)
+// 				err = r.Update(ctx, &db)
+// 				if err != nil {
+// 					return err
+// 				}
+// 			}
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }

@@ -20,33 +20,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 
-	kindav1beta1 "github.com/db-operator/db-operator/api/v1beta1"
+	kindav1beta2 "github.com/db-operator/db-operator/api/v1beta2"
 	"github.com/db-operator/db-operator/pkg/consts"
 	"github.com/db-operator/db-operator/pkg/utils/database"
 	"github.com/db-operator/db-operator/pkg/utils/kci"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func FetchDbInstanceData(ctx context.Context) {
 }
 
-func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred database.Credentials, instance *kindav1beta1.DbInstance) (database.Database, *database.DatabaseUser, error) {
-	log := log.FromContext(ctx)
-	host := instance.Status.Info["DB_CONN"]
-	port, err := strconv.Atoi(instance.Status.Info["DB_PORT"])
-	if err != nil {
-		log.Error(err, "can't get port information from the instanceRef")
-		return nil, nil, err
-	}
-
-	backend, err := instance.GetBackendType()
-	if err != nil {
-		log.Error(err, "could not get backend type")
-		return nil, nil, err
-	}
+func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta2.Database, dbCred database.Credentials, instance *kindav1beta2.DbInstance) (database.Database, *database.DatabaseUser, error) {
+	host := instance.Status.URL
+	port := instance.Status.Port
 
 	monitoringEnabled := instance.IsMonitoringEnabled()
 
@@ -71,14 +58,13 @@ func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred 
 			SkipCAVerify:     instance.Spec.SSLConnection.SkipVerify,
 			DropPublicSchema: dbcr.Spec.Postgres.DropPublicSchema,
 			Schemas:          dbcr.Spec.Postgres.Schemas,
-			Template:         dbcr.Spec.Postgres.Template,
+			Template:         dbcr.Spec.Postgres.Params.Template,
 			MainUser:         dbuser,
 		}
 		return db, dbuser, nil
 
 	case "mysql":
 		db := database.Mysql{
-			Backend:      backend,
 			Host:         host,
 			Port:         uint16(port),
 			Database:     dbCred.Name,
@@ -93,7 +79,7 @@ func FetchDatabaseData(ctx context.Context, dbcr *kindav1beta1.Database, dbCred 
 	}
 }
 
-func ParseDatabaseSecretData(dbcr *kindav1beta1.Database, data map[string][]byte) (database.Credentials, error) {
+func ParseDatabaseSecretData(dbcr *kindav1beta2.Database, data map[string][]byte) (database.Credentials, error) {
 	cred := database.Credentials{}
 
 	switch dbcr.Status.Engine {
@@ -178,7 +164,7 @@ func GenerateDatabaseSecretData(objectMeta metav1.ObjectMeta, engine, dbName str
 	}
 }
 
-func GetSSLMode(dbcr *kindav1beta1.Database, instance *kindav1beta1.DbInstance) (string, error) {
+func GetSSLMode(dbcr *kindav1beta2.Database, instance *kindav1beta2.DbInstance) (string, error) {
 	genericSSL, err := GetGenericSSLMode(dbcr, instance)
 	if err != nil {
 		return "", err
@@ -209,7 +195,7 @@ func GetSSLMode(dbcr *kindav1beta1.Database, instance *kindav1beta1.DbInstance) 
 	return "", fmt.Errorf("unknown database engine: %s", dbcr.Status.Engine)
 }
 
-func GetGenericSSLMode(dbcr *kindav1beta1.Database, instance *kindav1beta1.DbInstance) (string, error) {
+func GetGenericSSLMode(dbcr *kindav1beta2.Database, instance *kindav1beta2.DbInstance) (string, error) {
 	if !instance.Spec.SSLConnection.Enabled {
 		return consts.SSL_DISABLED, nil
 	} else {
